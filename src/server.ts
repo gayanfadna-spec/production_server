@@ -96,13 +96,14 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-// Start listening immediately
-app.listen(PORT, () => {
+// Start listening immediately on 0.0.0.0
+const server = app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`=======================================================`);
   console.log(`🚀 Fadna Production Backend running on port ${PORT}`);
-  console.log(`📡 API Base: http://localhost:${PORT}/api`);
+  console.log(`📡 Bound to: 0.0.0.0:${PORT}`);
+  console.log(`📡 API Base: http://0.0.0.0:${PORT}/api`);
   if (resolvedDist) {
-    console.log(`🖥️  Frontend UI served at: http://localhost:${PORT}`);
+    console.log(`🖥️  Frontend UI served at: http://0.0.0.0:${PORT}`);
   }
   console.log(`=======================================================`);
 });
