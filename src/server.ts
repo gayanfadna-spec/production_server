@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -39,10 +40,22 @@ app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 // Health Check
 app.get('/api/health', (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const states = ['Disconnected', 'Connected', 'Connecting', 'Disconnecting'];
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI || '';
+  
+  // Mask password in URI for safe display
+  const maskedUri = uri.replace(/\/\/([^:]+):([^@]+)@/, '//$1:****@');
+
   res.json({
     status: 'ONLINE',
     system: 'Fadna Production Stock & Planning System',
     timestamp: new Date().toISOString(),
+    database: {
+      status: states[dbState] || 'Unknown',
+      readyState: dbState,
+      configuredUri: maskedUri ? maskedUri : 'NONE (Defaulting to localhost:27017)'
+    }
   });
 });
 
