@@ -484,20 +484,20 @@ export const saveDailyMatrixGrid = async (req: any, res: Response): Promise<any>
       transactionDate: { $gte: dayStart, $lte: dayEnd },
     });
 
-    // Revert previous transactions effect on stock to avoid duplication (unless storeStocks was explicitly passed)
-    if (!storeStocks || Object.keys(storeStocks).length === 0) {
-      for (const txn of existingTxns) {
-        const fg = fgMap[txn.itemShortCode || ''];
-        if (fg) {
-          if (txn.transactionType === 'OUT') {
-            fg.finishedStoreStock += txn.quantity;
-          } else if (txn.transactionType === 'IN') {
-            fg.finishedStoreStock = Math.max(0, fg.finishedStoreStock - txn.quantity);
-          }
+    // Always revert previous transactions effect on stock to avoid duplication
+    for (const txn of existingTxns) {
+      const fg = fgMap[txn.itemShortCode || ''];
+      if (fg) {
+        if (txn.transactionType === 'OUT') {
+          fg.finishedStoreStock += txn.quantity;
+        } else if (txn.transactionType === 'IN') {
+          fg.finishedStoreStock = Math.max(0, fg.finishedStoreStock - txn.quantity);
         }
       }
-    } else {
-      // User explicitly set finished store stocks in this save
+    }
+
+    // If user explicitly edited specific store stock values, apply those overrides
+    if (storeStocks && typeof storeStocks === 'object') {
       for (const [code, storeQty] of Object.entries(storeStocks)) {
         if (storeQty !== '' && storeQty !== null && storeQty !== undefined && fgMap[code]) {
           fgMap[code].finishedStoreStock = Math.max(0, Number(storeQty));
