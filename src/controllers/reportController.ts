@@ -219,23 +219,43 @@ export const getDailyMatrixReport = async (req: Request, res: Response): Promise
       } as any;
     }
 
+    // 4. Calculate date-specific Finished Store Stock:
+    // Any transactions that occurred strictly after dayEnd are unwound so that viewing a previous
+    // day reflects that day's closing store stock balance (Opening of day + IN of day - OUT of day).
+    const futureTxns = await StockTransaction.find({
+      division: selectedDivision,
+      transactionDate: { $gt: dayEnd },
+    });
+
+    const futureNetByCode: { [code: string]: number } = {};
+    futureTxns.forEach((t) => {
+      const code = t.itemShortCode;
+      if (!code) return;
+      const delta = t.transactionType === 'IN' ? t.quantity : -t.quantity;
+      futureNetByCode[code] = (futureNetByCode[code] || 0) + delta;
+    });
+
     const matrixData = {
       division: selectedDivision,
       dateStr,
-      products: orderedProducts.map((p) => ({
-        _id: p._id,
-        sku: p.sku,
-        shortCode: p.shortCode,
-        name: p.name,
-        productionFloorStock: p.productionFloorStock,
-        finishedStoreStock: p.finishedStoreStock,
-        totalStock: p.totalStock,
-        physicalActualStock: p.physicalActualStock ?? null,
-        variance:
-          p.physicalActualStock !== null && p.physicalActualStock !== undefined
-            ? p.physicalActualStock - (p.finishedStoreStock ?? 0)
-            : null,
-      })),
+      products: orderedProducts.map((p) => {
+        const netAfterDate = futureNetByCode[p.shortCode] || 0;
+        const historicalStoreStock = Math.max(0, p.finishedStoreStock - netAfterDate);
+        return {
+          _id: p._id,
+          sku: p.sku,
+          shortCode: p.shortCode,
+          name: p.name,
+          productionFloorStock: p.productionFloorStock,
+          finishedStoreStock: historicalStoreStock,
+          totalStock: (p.productionFloorStock || 0) + historicalStoreStock,
+          physicalActualStock: p.physicalActualStock ?? null,
+          variance:
+            p.physicalActualStock !== null && p.physicalActualStock !== undefined
+              ? p.physicalActualStock - historicalStoreStock
+              : null,
+        };
+      }),
       outRows,
       outTotals,
       inRows,
