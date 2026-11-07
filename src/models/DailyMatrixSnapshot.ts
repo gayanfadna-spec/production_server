@@ -35,3 +35,4 @@ export const DailyMatrixSnapshot = mongoose.model<IDailyMatrixSnapshot>(
   'DailyMatrixSnapshot',
   DailyMatrixSnapshotSchema
 );
+
