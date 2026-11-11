@@ -53,6 +53,7 @@ export const login = async (req: Request, res: Response): Promise<any> => {
         name: user.name,
         email: user.email,
         role: user.role,
+        customRole: user.customRole,
         department: user.department,
       },
     });

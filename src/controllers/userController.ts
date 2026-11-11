@@ -38,7 +38,7 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<any> =>
       .limit(Number(limit));
 
     // Calculate role breakdown stats
-    const [totalAll, activeCount, inactiveCount, adminCount, managerCount, storeCount, viewerCount] =
+    const [totalAll, activeCount, inactiveCount, adminCount, managerCount, storeCount, viewerCount, otherCount] =
       await Promise.all([
         User.countDocuments(),
         User.countDocuments({ isActive: true }),
@@ -47,6 +47,7 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<any> =>
         User.countDocuments({ role: 'production_manager' }),
         User.countDocuments({ role: 'store_keeper' }),
         User.countDocuments({ role: 'viewer' }),
+        User.countDocuments({ role: { $in: ['other', 'others'] } }),
       ]);
 
     return res.json({
@@ -63,6 +64,7 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<any> =>
         productionManager: managerCount,
         storeKeeper: storeCount,
         viewer: viewerCount,
+        other: otherCount,
       },
     });
   } catch (error: any) {
@@ -89,7 +91,7 @@ export const getUserById = async (req: AuthRequest, res: Response): Promise<any>
 
 export const createUser = async (req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const { name, username, email, password, role, department, isActive = true } = req.body;
+    const { name, username, email, password, role, customRole, department, isActive = true } = req.body;
 
     if (!name || !username || !email || !password) {
       return res.status(400).json({ success: false, message: 'Name, username, email, and password are required' });
@@ -116,6 +118,7 @@ export const createUser = async (req: AuthRequest, res: Response): Promise<any> 
       email: cleanEmail,
       password,
       role: role || 'viewer',
+      customRole: customRole ? customRole.trim() : '',
       department: department || 'Production & Planning',
       isActive: Boolean(isActive),
       lastEditedBy: {
@@ -143,6 +146,7 @@ export const createUser = async (req: AuthRequest, res: Response): Promise<any> 
         { field: 'username', label: 'Username', oldValue: null, newValue: newUser.username },
         { field: 'email', label: 'Email', oldValue: null, newValue: newUser.email },
         { field: 'role', label: 'Role', oldValue: null, newValue: newUser.role },
+        { field: 'customRole', label: 'Custom Role', oldValue: null, newValue: newUser.customRole },
         { field: 'department', label: 'Department', oldValue: null, newValue: newUser.department },
       ],
     });
@@ -156,6 +160,7 @@ export const createUser = async (req: AuthRequest, res: Response): Promise<any> 
         username: newUser.username,
         email: newUser.email,
         role: newUser.role,
+        customRole: newUser.customRole,
         department: newUser.department,
         isActive: newUser.isActive,
         lastEditedBy: newUser.lastEditedBy,
@@ -168,7 +173,7 @@ export const createUser = async (req: AuthRequest, res: Response): Promise<any> 
 
 export const updateUser = async (req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const { name, username, email, role, department, isActive, password } = req.body;
+    const { name, username, email, role, customRole, department, isActive, password } = req.body;
     const user = await User.findById(req.params.id);
 
     if (!user) {
@@ -203,6 +208,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<any> 
     if (username !== undefined) updateFields.username = username.toLowerCase().trim();
     if (email !== undefined) updateFields.email = email.toLowerCase().trim();
     if (role !== undefined) updateFields.role = role;
+    if (customRole !== undefined) updateFields.customRole = customRole.trim();
     if (department !== undefined) updateFields.department = department.trim();
     if (isActive !== undefined) updateFields.isActive = Boolean(isActive);
 

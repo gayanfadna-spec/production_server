@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-export type UserRole = 'admin' | 'production_manager' | 'store_keeper' | 'viewer';
+export type UserRole = 'admin' | 'production_manager' | 'store_keeper' | 'viewer' | 'other' | 'others';
 
 export interface ILastEditedBy {
   userId?: mongoose.Types.ObjectId | string;
@@ -30,6 +30,7 @@ export interface IUser extends Document {
   email: string;
   password?: string;
   role: UserRole;
+  customRole?: string;
   department: string;
   isActive: boolean;
   avatar?: string;
@@ -47,9 +48,10 @@ const UserSchema = new Schema<IUser>(
     password: { type: String, required: true },
     role: {
       type: String,
-      enum: ['admin', 'production_manager', 'store_keeper', 'viewer'],
+      enum: ['admin', 'production_manager', 'store_keeper', 'viewer', 'other', 'others'],
       default: 'viewer',
     },
+    customRole: { type: String, default: '' },
     department: { type: String, default: 'Production & Planning' },
     isActive: { type: Boolean, default: true },
     avatar: { type: String, default: '' },
