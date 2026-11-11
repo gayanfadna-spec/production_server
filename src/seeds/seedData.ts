@@ -39,6 +39,7 @@ export async function seedDatabase(isStandalone: boolean = false) {
     const users = await User.create([
       {
         name: 'Dr. Rohan Fernando',
+        username: 'admin',
         email: 'admin@fadna.com',
         password: 'admin123',
         role: 'admin',
@@ -46,6 +47,7 @@ export async function seedDatabase(isStandalone: boolean = false) {
       },
       {
         name: 'Kavinda Jayasuriya',
+        username: 'manager',
         email: 'manager@fadna.com',
         password: 'manager123',
         role: 'production_manager',
@@ -53,6 +55,7 @@ export async function seedDatabase(isStandalone: boolean = false) {
       },
       {
         name: 'Sunil Weerasinghe',
+        username: 'store',
         email: 'store@fadna.com',
         password: 'store123',
         role: 'store_keeper',
@@ -60,6 +63,7 @@ export async function seedDatabase(isStandalone: boolean = false) {
       },
       {
         name: 'Nadeesha Perera',
+        username: 'viewer',
         email: 'viewer@fadna.com',
         password: 'viewer123',
         role: 'viewer',

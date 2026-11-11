@@ -8,6 +8,7 @@ const generateToken = (user: IUser): string => {
   return jwt.sign(
     {
       id: user._id,
+      username: user.username,
       email: user.email,
       role: user.role,
       name: user.name,
@@ -19,14 +20,17 @@ const generateToken = (user: IUser): string => {
 
 export const login = async (req: Request, res: Response): Promise<any> => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Please provide email and password' });
+    const { username, email, identifier, password } = req.body;
+    const loginIdentifier = (username || email || identifier || '').toLowerCase().trim();
+    if (!loginIdentifier || !password) {
+      return res.status(400).json({ success: false, message: 'Please provide username and password' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    const user = await User.findOne({
+      $or: [{ username: loginIdentifier }, { email: loginIdentifier }],
+    });
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+      return res.status(401).json({ success: false, message: 'Invalid username or password' });
     }
 
     if (!user.isActive) {
@@ -35,7 +39,7 @@ export const login = async (req: Request, res: Response): Promise<any> => {
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+      return res.status(401).json({ success: false, message: 'Invalid username or password' });
     }
 
     const token = generateToken(user);
@@ -45,6 +49,7 @@ export const login = async (req: Request, res: Response): Promise<any> => {
       token,
       user: {
         id: user._id,
+        username: user.username,
         name: user.name,
         email: user.email,
         role: user.role,
@@ -78,15 +83,28 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<any> =>
 
 export const createUser = async (req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const { name, email, password, role, department } = req.body;
-    const existing = await User.findOne({ email: email.toLowerCase().trim() });
-    if (existing) {
+    const { name, username, email, password, role, department } = req.body;
+    const cleanEmail = (email || '').toLowerCase().trim();
+    const cleanUsername = (username || cleanEmail.split('@')[0] || '').toLowerCase().trim();
+
+    if (!name || !cleanUsername || !cleanEmail || !password) {
+      return res.status(400).json({ success: false, message: 'Name, username, email, and password are required' });
+    }
+
+    const existingEmail = await User.findOne({ email: cleanEmail });
+    if (existingEmail) {
       return res.status(400).json({ success: false, message: 'User with this email already exists' });
+    }
+
+    const existingUsername = await User.findOne({ username: cleanUsername });
+    if (existingUsername) {
+      return res.status(400).json({ success: false, message: 'User with this username already exists' });
     }
 
     const newUser = new User({
       name,
-      email,
+      username: cleanUsername,
+      email: cleanEmail,
       password,
       role: role || 'viewer',
       department: department || 'Production Floor',
@@ -98,6 +116,7 @@ export const createUser = async (req: AuthRequest, res: Response): Promise<any> 
       message: 'User created successfully',
       user: {
         id: newUser._id,
+        username: newUser.username,
         name: newUser.name,
         email: newUser.email,
         role: newUser.role,

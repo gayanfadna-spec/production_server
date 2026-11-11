@@ -13,6 +13,7 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<any> =>
     if (search) {
       filter.$or = [
         { name: { $regex: String(search), $options: 'i' } },
+        { username: { $regex: String(search), $options: 'i' } },
         { email: { $regex: String(search), $options: 'i' } },
         { department: { $regex: String(search), $options: 'i' } },
       ];
@@ -88,14 +89,22 @@ export const getUserById = async (req: AuthRequest, res: Response): Promise<any>
 
 export const createUser = async (req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const { name, email, password, role, department, isActive = true } = req.body;
+    const { name, username, email, password, role, department, isActive = true } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: 'Name, email, and password are required' });
+    if (!name || !username || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Name, username, email, and password are required' });
     }
 
-    const existing = await User.findOne({ email: email.toLowerCase().trim() });
-    if (existing) {
+    const cleanUsername = username.toLowerCase().trim();
+    const cleanEmail = email.toLowerCase().trim();
+
+    const usernameExists = await User.findOne({ username: cleanUsername });
+    if (usernameExists) {
+      return res.status(400).json({ success: false, message: 'A user with this username already exists' });
+    }
+
+    const emailExists = await User.findOne({ email: cleanEmail });
+    if (emailExists) {
       return res.status(400).json({ success: false, message: 'A user with this email already exists' });
     }
 
@@ -103,7 +112,8 @@ export const createUser = async (req: AuthRequest, res: Response): Promise<any> 
 
     const newUser = new User({
       name: name.trim(),
-      email: email.toLowerCase().trim(),
+      username: cleanUsername,
+      email: cleanEmail,
       password,
       role: role || 'viewer',
       department: department || 'Production & Planning',
@@ -126,10 +136,11 @@ export const createUser = async (req: AuthRequest, res: Response): Promise<any> 
       action: 'CREATE',
       entityType: 'User',
       entityId: newUser._id.toString(),
-      entityName: `${newUser.name} (${newUser.email})`,
+      entityName: `${newUser.name} (@${newUser.username} / ${newUser.email})`,
       summary: `Created new user account with role '${newUser.role}' in '${newUser.department}'`,
       changes: [
         { field: 'name', label: 'Name', oldValue: null, newValue: newUser.name },
+        { field: 'username', label: 'Username', oldValue: null, newValue: newUser.username },
         { field: 'email', label: 'Email', oldValue: null, newValue: newUser.email },
         { field: 'role', label: 'Role', oldValue: null, newValue: newUser.role },
         { field: 'department', label: 'Department', oldValue: null, newValue: newUser.department },
@@ -142,6 +153,7 @@ export const createUser = async (req: AuthRequest, res: Response): Promise<any> 
       user: {
         id: newUser._id,
         name: newUser.name,
+        username: newUser.username,
         email: newUser.email,
         role: newUser.role,
         department: newUser.department,
@@ -156,11 +168,23 @@ export const createUser = async (req: AuthRequest, res: Response): Promise<any> 
 
 export const updateUser = async (req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const { name, email, role, department, isActive, password } = req.body;
+    const { name, username, email, role, department, isActive, password } = req.body;
     const user = await User.findById(req.params.id);
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Check username uniqueness if username is changed
+    if (username && username.toLowerCase().trim() !== user.username) {
+      const cleanUsername = username.toLowerCase().trim();
+      const usernameExists = await User.findOne({
+        username: cleanUsername,
+        _id: { $ne: user._id },
+      });
+      if (usernameExists) {
+        return res.status(400).json({ success: false, message: 'Another user already uses this username' });
+      }
     }
 
     // Check email uniqueness if email is changed
@@ -176,6 +200,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<any> 
 
     const updateFields: Record<string, any> = {};
     if (name !== undefined) updateFields.name = name.trim();
+    if (username !== undefined) updateFields.username = username.toLowerCase().trim();
     if (email !== undefined) updateFields.email = email.toLowerCase().trim();
     if (role !== undefined) updateFields.role = role;
     if (department !== undefined) updateFields.department = department.trim();
@@ -212,7 +237,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<any> 
         action: 'UPDATE',
         entityType: 'User',
         entityId: user._id.toString(),
-        entityName: `${user.name} (${user.email})`,
+        entityName: `${user.name} (@${user.username || ''} / ${user.email})`,
         summary: finalSummary,
         changes,
       });

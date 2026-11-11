@@ -25,6 +25,7 @@ export const LastEditedBySchema = new Schema(
 );
 
 export interface IUser extends Document {
+  username?: string;
   name: string;
   email: string;
   password?: string;
@@ -40,6 +41,7 @@ export interface IUser extends Document {
 
 const UserSchema = new Schema<IUser>(
   {
+    username: { type: String, trim: true, lowercase: true, sparse: true, unique: true },
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
