@@ -516,15 +516,6 @@ export const saveDailyMatrixGrid = async (req: any, res: Response): Promise<any>
       }
     }
 
-    // If user explicitly edited specific store stock values, apply those overrides
-    if (storeStocks && typeof storeStocks === 'object') {
-      for (const [code, storeQty] of Object.entries(storeStocks)) {
-        if (storeQty !== '' && storeQty !== null && storeQty !== undefined && fgMap[code]) {
-          fgMap[code].finishedStoreStock = Math.max(0, Number(storeQty));
-        }
-      }
-    }
-
     // Apply actual physical counts if provided
     if (actualCounts && typeof actualCounts === 'object') {
       for (const [code, actualQty] of Object.entries(actualCounts)) {
@@ -650,6 +641,28 @@ export const saveDailyMatrixGrid = async (req: any, res: Response): Promise<any>
               transactionDate: dayStart,
             });
           }
+        }
+      }
+    }
+
+    // 5. If user explicitly edited specific store stock values, apply those overrides as final stock balance
+    if (storeStocks && typeof storeStocks === 'object') {
+      const futureTxns = await StockTransaction.find({
+        division,
+        transactionDate: { $gt: dayEnd },
+      });
+      const futureNetByCode: { [code: string]: number } = {};
+      futureTxns.forEach((t) => {
+        const code = t.itemShortCode;
+        if (!code) return;
+        const delta = t.transactionType === 'IN' ? t.quantity : -t.quantity;
+        futureNetByCode[code] = (futureNetByCode[code] || 0) + delta;
+      });
+
+      for (const [code, storeQty] of Object.entries(storeStocks)) {
+        if (storeQty !== '' && storeQty !== null && storeQty !== undefined && fgMap[code]) {
+          const netAfter = futureNetByCode[code] || 0;
+          fgMap[code].finishedStoreStock = Math.max(0, Number(storeQty) + netAfter);
         }
       }
     }
