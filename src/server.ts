@@ -85,6 +85,48 @@ if (resolvedDist) {
     if (req.path.startsWith('/api')) return next();
     res.sendFile(path.join(resolvedDist, 'index.html'));
   });
+} else {
+  // If client files are hosted separately (e.g. Render Static Site), redirect browser requests to the frontend
+  app.get('/', (req, res) => {
+    if (req.accepts('html')) {
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Fadna Production API</title>
+          <meta http-equiv="refresh" content="2;url=https://production-client-tam5.onrender.com">
+          <style>
+            body { background: #020617; color: #f8fafc; font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+            .card { background: #0f172a; padding: 2rem; border-radius: 1rem; border: 1px solid #1e293b; text-align: center; max-width: 480px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+            h1 { font-size: 1.25rem; color: #10b981; margin-bottom: 0.5rem; }
+            p { font-size: 0.875rem; color: #94a3b8; line-height: 1.5; }
+            a { display: inline-block; margin-top: 1rem; background: #059669; color: white; padding: 0.625rem 1.25rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600; font-size: 0.875rem; }
+            a:hover { background: #10b981; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h1>🌿 Fadna Production API Server</h1>
+            <p>The backend API server is online and operational.<br>Redirecting to the web application interface...</p>
+            <a href="https://production-client-tam5.onrender.com">Open Web Application &rarr;</a>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+    return res.json({
+      status: 'ONLINE',
+      system: 'Fadna Production System API',
+      appUrl: 'https://production-client-tam5.onrender.com',
+    });
+  });
+
+  // Catch-all for non-API routes: redirect to client
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    return res.redirect('https://production-client-tam5.onrender.com');
+  });
 }
 
 // Global Error Handler
