@@ -21,25 +21,52 @@ const generateToken = (user: IUser): string => {
 export const login = async (req: Request, res: Response): Promise<any> => {
   try {
     const { username, email, identifier, password } = req.body;
-    const loginIdentifier = (username || email || identifier || '').toLowerCase().trim();
-    if (!loginIdentifier || !password) {
+    let rawIdentifier = (username || email || identifier || '').trim();
+    if (!rawIdentifier || !password) {
       return res.status(400).json({ success: false, message: 'Please provide username and password' });
     }
 
+    // Strip leading @ if user typed @username
+    if (rawIdentifier.startsWith('@')) {
+      rawIdentifier = rawIdentifier.slice(1).trim();
+    }
+
+    const cleanIdentifier = rawIdentifier.toLowerCase();
+    const escapedIdentifier = cleanIdentifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Search by username, email, or full name (case-insensitive)
     const user = await User.findOne({
-      $or: [{ username: loginIdentifier }, { email: loginIdentifier }],
+      $or: [
+        { username: cleanIdentifier },
+        { email: cleanIdentifier },
+        { username: { $regex: new RegExp(`^${escapedIdentifier}$`, 'i') } },
+        { email: { $regex: new RegExp(`^${escapedIdentifier}$`, 'i') } },
+        { name: { $regex: new RegExp(`^${escapedIdentifier}$`, 'i') } },
+      ],
     });
+
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid username or password' });
+      return res.status(401).json({
+        success: false,
+        message: `Account not found for "${rawIdentifier}". Please check your username, email, or full name.`,
+      });
     }
 
     if (!user.isActive) {
       return res.status(403).json({ success: false, message: 'Account is deactivated. Contact Admin.' });
     }
 
-    const isMatch = await user.comparePassword(password);
+    // Check exact password or trimmed password
+    let isMatch = await user.comparePassword(password);
+    if (!isMatch && password.trim() !== password) {
+      isMatch = await user.comparePassword(password.trim());
+    }
+
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid username or password' });
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid password. Please check your password or use 1-Click Role Access.',
+      });
     }
 
     const token = generateToken(user);

@@ -218,8 +218,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<any> 
     Object.assign(user, updateFields);
 
     if (password && password.trim().length > 0) {
-      const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(password, salt);
+      user.password = password.trim();
       changes.push({ field: 'password', label: 'Password', oldValue: '******', newValue: '[Password Reset]' });
     }
 
